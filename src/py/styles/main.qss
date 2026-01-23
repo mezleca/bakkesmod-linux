@@ -1,0 +1,75 @@
+QMainWindow {
+    background-color: #0a0a0a;
+}
+
+#header {
+    background-color: #141414;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+#headerBtn {
+    background-color: transparent;
+    color: #666666;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#headerBtn:hover {
+    color: #aaaaaa;
+    background-color: #1a1a1a;
+}
+
+#headerBtn:disabled {
+    color: #333333;
+}
+
+#mainBtn {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+#mainBtn:hover {
+    background-color: #252525;
+    border-color: #3a3a3a;
+}
+
+#mainBtn:pressed {
+    background-color: #151515;
+}
+
+#statusLabel {
+    color: #666666;
+    font-size: 11px;
+}
+
+#statusLabel[state="success"] {
+    color: #437ed1;
+}
+
+#statusLabel[state="error"] {
+    color: #c44444;
+}
+
+#progressText {
+    color: #888888;
+    font-size: 12px;
+}
+
+QProgressBar {
+    border: 1px solid #1a1a1a;
+    border-radius: 2px;
+    background-color: #0f0f0f;
+    height: 6px;
+}
+
+QProgressBar::chunk {
+    background-color: #437ed1;
+    border-radius: 1px;
+}

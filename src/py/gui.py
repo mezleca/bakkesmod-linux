@@ -1,0 +1,302 @@
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout,
+    QWidget, QSystemTrayIcon, QMenu, QLabel, QProgressBar, QFrame
+)
+from PySide6.QtGui import QIcon, QAction, QDesktopServices
+from PySide6.QtCore import QThread, Signal, Qt, QUrl
+
+from pathlib import Path
+from bakkesmod import BakkesHelper
+from utils import get_resource_path
+
+def load_stylesheet(filename):
+    qss_path = Path(__file__).parent / "styles" / filename
+    if not qss_path.exists():
+        return ""
+
+    with open(qss_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+class ProgressReporter:
+    def __init__(self, callback):
+        self._callback = callback
+
+    def status(self, message):
+        print(f"[progress] {message}")
+        self._callback(message, -1)
+
+    def progress(self, message, percentage):
+        print(f"[progress] {message} ({percentage}%)")
+        self._callback(message, percentage)
+
+    def done(self, message):
+        print(f"[done] {message}")
+        self._callback(message, 100)
+
+    def error(self, message):
+        print(f"[error] {message}")
+        self._callback(message, 100)
+
+class WorkerThread(QThread):
+    finished = Signal(bool, str)
+    progress_update = Signal(str, int)
+
+    def __init__(self, task_fn):
+        super().__init__()
+        self.task_fn = task_fn
+
+    def run(self):
+        try:
+            def emit_progress(message, percentage=-1):
+                self.progress_update.emit(message, percentage)
+
+            progress = ProgressReporter(emit_progress)
+            self.task_fn(progress)
+            self.finished.emit(True, "operation completed")
+        except Exception as e:
+            self.finished.emit(False, str(e))
+
+class BakkesWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("BakkesMod")
+        self.setFixedSize(360, 200)
+        self.setWindowIcon(QIcon(str(get_resource_path("bakkesmod.png"))))
+
+        self.injector = BakkesHelper()
+        self.worker_thread = None
+        self.is_busy = False
+
+        self.setup_ui()
+        self.setup_tray()
+        self.setStyleSheet(load_stylesheet("main.qss"))
+
+        self.start_task(
+            lambda progress: self.injector.update(progress),
+            after_fn=lambda success, msg: self.show_idle_state()
+        )
+
+    def setup_ui(self):
+        central = QWidget()
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        header = QFrame()
+        header.setObjectName("header")
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(8, 8, 8, 8)
+        header_layout.setSpacing(4)
+
+        self.update_btn = QPushButton("check for updates")
+        self.update_btn.setObjectName("headerBtn")
+        self.update_btn.clicked.connect(self.check_updates)
+
+        self.config_btn = QPushButton("config")
+        self.config_btn.setObjectName("headerBtn")
+
+        self.folder_btn = QPushButton("folder")
+        self.folder_btn.setObjectName("headerBtn")
+        self.folder_btn.clicked.connect(self.open_folder)
+
+        header_layout.addWidget(self.update_btn)
+        header_layout.addWidget(self.config_btn)
+        header_layout.addWidget(self.folder_btn)
+        header_layout.addStretch()
+
+        header.setLayout(header_layout)
+        main_layout.addWidget(header)
+
+        self.content_area = QWidget()
+        self.content_layout = QVBoxLayout()
+        self.content_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.content_area.setLayout(self.content_layout)
+
+        main_layout.addWidget(self.content_area, 1)
+
+        central.setLayout(main_layout)
+        self.setCentralWidget(central)
+
+        self.setup_idle_widgets()
+        self.setup_loading_widgets()
+
+    def setup_idle_widgets(self):
+        self.idle_widget = QWidget()
+        idle_layout = QVBoxLayout()
+        idle_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        idle_layout.setSpacing(12)
+
+        self.inject_btn = QPushButton("inject")
+        self.inject_btn.setObjectName("mainBtn")
+        self.inject_btn.setFixedSize(140, 40)
+        self.inject_btn.clicked.connect(self.inject_clicked)
+
+        self.status_label = QLabel("ready")
+        self.status_label.setObjectName("statusLabel")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        idle_layout.addWidget(self.inject_btn)
+        idle_layout.addWidget(self.status_label)
+
+        self.idle_widget.setLayout(idle_layout)
+
+    def setup_loading_widgets(self):
+        self.loading_widget = QWidget()
+        loading_layout = QVBoxLayout()
+        loading_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        loading_layout.setSpacing(16)
+
+        self.progress_text = QLabel("")
+        self.progress_text.setObjectName("progressText")
+        self.progress_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedWidth(260)
+        self.progress_bar.setTextVisible(False)
+
+        loading_layout.addWidget(self.progress_text)
+        loading_layout.addWidget(self.progress_bar)
+
+        self.loading_widget.setLayout(loading_layout)
+
+    def show_idle_state(self):
+        self.clear_content()
+        self.content_layout.addWidget(self.idle_widget)
+        self.idle_widget.show()
+        self.is_busy = False
+        self.toggle_header_buttons(True)
+
+    def show_loading_state(self):
+        self.clear_content()
+        self.content_layout.addWidget(self.loading_widget)
+        self.loading_widget.show()
+        self.is_busy = True
+        self.toggle_header_buttons(False)
+
+    def clear_content(self):
+        # remove all widgets from the central thing
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.hide()
+
+    def toggle_header_buttons(self, enabled):
+        self.update_btn.setEnabled(enabled)
+        self.config_btn.setEnabled(enabled)
+        self.folder_btn.setEnabled(enabled)
+
+    def setup_tray(self):
+        self.tray = QSystemTrayIcon(self)
+        self.tray.setIcon(QIcon(str(get_resource_path("bakkesmod.png"))))
+        self.tray.setToolTip("BakkesMod")
+
+        menu = QMenu()
+        menu.addAction(self.create_action("show", self.show_window))
+        menu.addAction(self.create_action("quit", self.quit_app))
+
+        self.tray.setContextMenu(menu)
+        self.tray.activated.connect(self.tray_clicked)
+        self.tray.show()
+
+    def create_action(self, text, slot):
+        action = QAction(text, self)
+        action.triggered.connect(slot)
+        return action
+
+    def show_window(self):
+        self.show()
+        self.activateWindow()
+
+    def quit_app(self):
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.quit()
+            self.worker_thread.wait()
+
+        self.tray.hide()
+        QApplication.quit()
+
+    def tray_clicked(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            if self.isVisible():
+                self.hide()
+            else:
+                self.show_window()
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+
+    def check_updates(self):
+        if self.is_busy:
+            return
+
+        self.start_task(
+            lambda progress: self.injector.update(progress),
+            after_fn=lambda success, msg: self.finish_update(success, msg)
+        )
+
+    def open_folder(self):
+        if self.injector.wine_prefix is None:
+            self.set_status("inject first to resolve prefix", "error")
+            return
+
+        path = self.injector.get_prefix_bakkesmod_path()
+        if path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self.set_status("bakkesmod folder not found", "error")
+
+    def inject_clicked(self):
+        if self.is_busy:
+            return
+
+        self.start_task(
+            lambda progress: self.injector.inject(progress),
+            after_fn=lambda success, msg: self.finish_injection(success, msg)
+        )
+
+    def start_task(self, task_fn, after_fn=None):
+        self.show_loading_state()
+
+        self.worker_thread = WorkerThread(task_fn)
+        self.worker_thread.progress_update.connect(self.update_progress)
+        self.worker_thread.finished.connect(
+            lambda success, msg: self.task_finished(success, msg, after_fn)
+        )
+        self.worker_thread.start()
+
+    def update_progress(self, message, percentage):
+        self.progress_text.setText(message)
+
+        if percentage == -1:
+            self.progress_bar.setRange(0, 0)
+        else:
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(percentage)
+
+    def task_finished(self, success, message, after_fn):
+        if after_fn:
+            after_fn(success, message)
+        else:
+            self.show_idle_state()
+
+    def finish_update(self, success, message):
+        self.show_idle_state()
+        if success:
+            self.set_status("up to date", "success")
+        else:
+            self.set_status(f"update failed: {message}", "error")
+
+    def finish_injection(self, success, message):
+        self.show_idle_state()
+        if success:
+            self.set_status("injected", "success")
+        else:
+            self.set_status(f"failed: {message}", "error")
+
+    def set_status(self, text, state="normal"):
+        self.status_label.setText(text)
+        self.status_label.setProperty("state", state)
+        self.status_label.style().unpolish(self.status_label)
+        self.status_label.style().polish(self.status_label)
