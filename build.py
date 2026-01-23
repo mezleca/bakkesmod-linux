@@ -153,16 +153,7 @@ def configure(debug: bool) -> int:
         print(f"unsupported platform: {SYSTEM}")
         return 1
 
-def build(debug: bool) -> int:
-    if not BUILD_DIR.exists():
-        print("build directory doesnt exist, configuring...")
-        if configure(debug) != 0:
-            return 1
-
-    cores = get_cpu_count()
-    return run(f"ninja -C {BUILD_DIR} -j{cores}")[0]
-
-def run_binary() -> int:
+def get_binary() -> str | None:
     candidates = [
         BUILD_DIR / BINARY_NAME,
         BUILD_DIR / f"{BINARY_NAME}.exe",
@@ -170,7 +161,32 @@ def run_binary() -> int:
         BUILD_DIR / "Debug" / f"{BINARY_NAME}.exe",
     ]
 
-    binary = next((path for path in candidates if path.exists()), None)
+    return next((path for path in candidates if path.exists()), None)
+
+def build(debug: bool) -> int:
+    if not BUILD_DIR.exists():
+        print("build directory doesnt exist, configuring...")
+        if configure(debug) != 0:
+            return 1
+
+    cores = get_cpu_count()
+    ret = run(f"ninja -C {BUILD_DIR} -j{cores}")[0]
+
+    if ret > 0:
+        return ret
+
+    # TOFIX: remove when i finish workflow
+    binary = get_binary()
+
+    if binary is None:
+        print("hack: cant copy (unable to find)")
+        return 1
+
+    _ = run(f"cp {binary} ./src/bakkesmod_linux/resources/")
+    return 0
+
+def run_binary() -> int:
+    binary = get_binary()
 
     if binary is None:
         print("binary not found in any expected location")

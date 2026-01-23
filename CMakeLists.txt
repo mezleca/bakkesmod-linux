@@ -15,8 +15,8 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libstdc++ 
 set(CMAKE_BUILD_TYPE Release)
 
 # get source files
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/cpp/*.cpp")
-file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/cpp/*.hpp")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/bakkesmod_linux/injector/*.cpp")
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/bakkesmod_linux/injector/*.hpp")
 
 # add dependencies
 # add_subdirectory(vendor/fmt)
