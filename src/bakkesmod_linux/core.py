@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QApplication
-from gui import BakkesWindow
+from bakkesmod_linux.gui import BakkesWindow
 
 import sys
 import signal

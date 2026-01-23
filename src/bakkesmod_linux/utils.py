@@ -4,11 +4,13 @@ import os
 import shutil
 
 from pathlib import Path
+from importlib.resources import files, as_file
+from contextlib import contextmanager
 
 def copy_tree(src: Path, dst: Path, symlink_dirs: list[str] | None = None):
     symlink_dirs = symlink_dirs or []
 
-    for root, dirs, files in os.walk(src):
+    for root, dirs, _files in os.walk(src):
         rel = Path(root).relative_to(src)
         target_dir = dst / rel
 
@@ -27,16 +29,20 @@ def copy_tree(src: Path, dst: Path, symlink_dirs: list[str] | None = None):
 
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for file in files:
+        for file in _files:
             src_file = Path(root) / file
             dst_file = target_dir / file
             shutil.copy2(src_file, dst_file)
 
-def get_resource_folder():
-    return Path(__file__).parent.parent / "resources"
+@contextmanager
+def get_resource_path(filename: str):
+    resource = (
+        files("bakkesmod_linux")
+        .joinpath("resources", filename)
+    )
 
-def get_resource_path(filename):
-    return get_resource_folder() / filename
+    with as_file(resource) as path:
+        yield path
 
 def get_file_content(location: str) -> str:
     content = ""

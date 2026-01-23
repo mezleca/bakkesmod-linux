@@ -1,5 +1,4 @@
 from getpass import getuser
-
 from pathlib import Path
 
 HOME = str(Path.home())

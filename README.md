@@ -16,6 +16,7 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 - Uses Python only for **update checks, file management, etc...**
 
 ## Todo
+- [ ] automatically create .desktop file
 - [ ] create workflow to compile the c++ injector
 - [ ] download the c++ injector from gh releases instead of using the manually copied one
 - [ ] loop to check if we closed rocket league (so we can inject once again)

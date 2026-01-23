@@ -3,13 +3,13 @@ import zipfile
 
 from pathlib import Path
 from PySide6 import os
-from constants import (
+from bakkesmod_linux.constants import (
     BAKKESMOD_GITHUB_LATEST,
     BAKKESMOD_LOCATION,
     BAKKESMOD_UPDATER_URL,
     PREFIX_REL_LOCATION
 )
-from utils import copy_tree, get_file_content, get_process_env, get_resource_folder, run
+from bakkesmod_linux.utils import copy_tree, get_file_content, get_process_env, get_resource_path, run
 
 SYMLINK_DIRS = ["cfg", "plugins"]
 
@@ -175,7 +175,8 @@ class BakkesHelper:
         if not self.ensure_prefix_files(progress):
             return
 
-        injector_path = get_resource_folder() / "simple_injector.exe"
+        with get_resource_path("simple_injector.exe") as file:
+            injector_path = file
 
         if not injector_path.exists():
             progress.error("missing simple_injector.exe... please reinstall")

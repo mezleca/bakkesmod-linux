@@ -5,17 +5,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QAction, QDesktopServices
 from PySide6.QtCore import QThread, Signal, Qt, QUrl
 
-from pathlib import Path
-from bakkesmod import BakkesHelper
-from utils import get_resource_path
-
-def load_stylesheet(filename):
-    qss_path = Path(__file__).parent / "styles" / filename
-    if not qss_path.exists():
-        return ""
-
-    with open(qss_path, "r", encoding="utf-8") as f:
-        return f.read()
+from bakkesmod_linux.bakkesmod import BakkesHelper
+from bakkesmod_linux.utils import get_resource_path
 
 class ProgressReporter:
     def __init__(self, callback):
@@ -61,7 +52,9 @@ class BakkesWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("BakkesMod")
         self.setFixedSize(360, 200)
-        self.setWindowIcon(QIcon(str(get_resource_path("bakkesmod.png"))))
+
+        with get_resource_path("bakkesmod.png") as file:
+            self.setWindowIcon(QIcon(str(file)))
 
         self.injector = BakkesHelper()
         self.worker_thread = None
@@ -69,7 +62,9 @@ class BakkesWindow(QMainWindow):
 
         self.setup_ui()
         self.setup_tray()
-        self.setStyleSheet(load_stylesheet("main.qss"))
+
+        with get_resource_path("main.qss") as file:
+            self.setStyleSheet(file.read_text(encoding="utf-8"))
 
         self.start_task(
             lambda progress: self.injector.update(progress),
@@ -188,7 +183,10 @@ class BakkesWindow(QMainWindow):
 
     def setup_tray(self):
         self.tray = QSystemTrayIcon(self)
-        self.tray.setIcon(QIcon(str(get_resource_path("bakkesmod.png"))))
+
+        with get_resource_path("bakkesmod.png") as icon_path:
+            self.tray.setIcon(QIcon(str(icon_path)))
+
         self.tray.setToolTip("BakkesMod")
 
         menu = QMenu()
