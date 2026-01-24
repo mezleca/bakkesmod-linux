@@ -7,6 +7,36 @@ from pathlib import Path
 from importlib.resources import files, as_file
 from contextlib import contextmanager
 
+WINE_VARS_ALLOWED = [
+    "WINEPREFIX",
+    "WINELOADER",
+    "WINEDLLOVERRIDES",
+    "WINEDEBUG",
+    "WINEDLLPATH",
+    "WINENTSYNC",
+
+    # proton specific (prob not needed)
+    "PROTON_USE_WOW64",
+    "PROTON_USE_NTSYNC",
+    "PROTON_NO_ESYNC",
+    "PROTON_NO_FSYNC",
+
+    # graphics/vulkan (why not)
+    "DXVK_LOG_LEVEL",
+    "DXVK_NVAPI_ALLOW_OTHER_DRIVERS",
+    "DXVK_ENABLE_NVAPI",
+    "VKD3D_DEBUG",
+    "VKD3D_SHADER_DEBUG",
+    "VK_ICD_FILENAMES",
+    "VK_DRIVER_FILES",
+
+    # library paths
+    "LD_LIBRARY_PATH",
+    "LIBVA_DRIVERS_PATH",
+    "LIBGL_DRIVERS_PATH",
+    "VDPAU_DRIVER_PATH",
+]
+
 def copy_tree(src: Path, dst: Path, symlink_dirs: list[str] | None = None):
     symlink_dirs = symlink_dirs or []
 
@@ -144,15 +174,8 @@ def get_process_env(process_name) -> tuple[int, dict[str, str]] | None:
         return None
 
 def filter_game_env(env: dict) -> dict:
-    # filter env to only include wine/proton/graphics related stuff
-    allowed_prefixes = ("WINE", "PROTON", "DXVK", "VKD3D", "STEAM", "ULWGL")
-
-    filtered = {
-        k: v for k, v in env.items()
-        if k.startswith(allowed_prefixes)
-    }
-
-    # merge with clean os environ
+    filtered = {k: env[k] for k in WINE_VARS_ALLOWED if k in env}
+    # merge with clean base environ
     base = os.environ.copy()
     base.update(filtered)
     return base

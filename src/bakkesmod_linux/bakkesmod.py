@@ -40,28 +40,23 @@ class BakkesHelper:
     def check_rl_process(self) -> None:
         result = get_process_env("RocketLeague.exe")
 
-        if result is None:
-            return
-
         was_running = self.rl_running
         self.rl_running = result is not None
 
-        if self.rl_running:
-             _, env = result
+        if self.rl_running and result:
+            _, env = result
+            self.wine_prefix = env["WINEPREFIX"]
+            self.loader = self.resolve_wine_loader(env["WINELOADER"])
+            self.game_env = filter_game_env(env)
 
-             self.wine_prefix = env["WINEPREFIX"]
-             self.loader = self.resolve_wine_loader(env["WINELOADER"])
+            if not self.bakkesmod_path:
+                self.resolve_install_path()
 
-             # filter environment to prevent crashes (e.g. from accessibility tools like xalia)
-             # while strictly preserving wine sync flags (esync/fsync/ntsync)
-             self.game_env = filter_game_env(env)
-
-             if not self.bakkesmod_path:
-                 self.resolve_install_path()
-
+        # reset injection state when process dies
         if was_running and not self.rl_running:
             self.injected = False
 
+        # notify ui about state change
         if self._on_process_change and was_running != self.rl_running:
             self._on_process_change(self.rl_running)
 
