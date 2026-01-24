@@ -1,7 +1,10 @@
 # BakkesMod Linux
 
-BakkesMod for linux.
-This is an updated and cleaner version of [mezleca/BakkesLinux](https://github.com/mezleca/BakkesLinux).
+<p align="center">
+	<img src="https://github.com/mezleca/bakkesmod-linux/blob/main/images/preview.png" width="95%">
+</p>
+
+An updated and cleaner version of [mezleca/BakkesLinux](https://github.com/mezleca/BakkesLinux).
 
 ## What does this do?
 
@@ -13,7 +16,6 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 - Copies **only what is needed** into the target Wine/Proton prefix.
 - Uses symlink for plugins / cfgs, meaning even if you uninstall the prefix, the config files should remain intact.
 - Uses a **minimal C++ injector** to inject the bakkesmod on the wine process.
-- Uses Python only for **update checks, file management, etc...**
 
 ## Todo
 - [ ] create workflow to compile the c++ injector
