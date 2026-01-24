@@ -26,12 +26,14 @@ class ProgressReporter:
         self._callback(message, -1)
 
     def progress(self, message, percentage):
-        print(f"[progress] {message} ({percentage}%)")
+        if message != "":
+            print(f"[progress] {message} ({percentage}%)")
         self._last_message = message
         self._callback(message, percentage)
 
     def done(self, message):
-        print(f"[done] {message}")
+        if message != "":
+            print(f"[done] {message}")
         self._last_message = message
         self._callback(message, 100)
 
@@ -93,8 +95,7 @@ class BakkesWindow(QMainWindow):
         self.injector.set_process_callback(self.on_process_state_changed)
         self.watcher_timer.start(WATCHER_INTERVAL_MS)
 
-    def on_startup_complete(self):
-        self.show_idle_state()
+    def check_rl_process(self):
         self.injector.check_rl_process()
 
         # update initial ui state
@@ -102,6 +103,13 @@ class BakkesWindow(QMainWindow):
             self.on_process_state_changed(True)
         else:
             self.on_process_state_changed(False)
+
+    def on_startup_complete(self):
+        self.show_idle_state()
+        self.injector.check_rl_process()
+
+        # update initial ui state
+        self.check_rl_process()
 
     def on_process_state_changed(self, running: bool):
         if not running:
@@ -326,6 +334,8 @@ class BakkesWindow(QMainWindow):
             self.set_status(message or "up to date", "success")
         else:
             self.set_status(message or "update failed", "error")
+
+        self.check_rl_process()
 
     def finish_injection(self, success, message):
         self.injector.injected = success
