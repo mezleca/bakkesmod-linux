@@ -142,3 +142,21 @@ def get_process_env(process_name) -> tuple[int, dict[str, str]] | None:
 
     except (FileNotFoundError, PermissionError):
         return None
+
+def filter_game_env(env: dict) -> dict:
+    # filter env to only include wine/proton/graphics related stuff
+    allowed_prefixes = ("WINE", "PROTON", "DXVK", "VKD3D", "STEAM", "ULWGL")
+
+    filtered = {
+        k: v for k, v in env.items()
+        if k.startswith(allowed_prefixes)
+    }
+
+    # merge with clean os environ
+    base = os.environ.copy()
+    base.update(filtered)
+    return base
+
+def win_path_to_linux(win_path: str) -> str:
+    # C:\Users\xxx\AppData\Roaming -> drive_c/users/xxx/AppData/Roaming
+    return win_path.replace("C:", "").replace("\\", "/").lstrip("/")

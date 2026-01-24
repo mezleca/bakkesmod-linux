@@ -3,29 +3,42 @@ from PySide6.QtWidgets import (
     QWidget, QSystemTrayIcon, QMenu, QLabel, QProgressBar, QFrame
 )
 from PySide6.QtGui import QIcon, QAction, QDesktopServices
-from PySide6.QtCore import QThread, Signal, Qt, QUrl
+from PySide6.QtCore import QThread, Signal, Qt, QUrl, QTimer
 
-from bakkesmod_linux.bakkesmod import BakkesHelper
+from bakkesmod_linux.bakkesmod import BakkesHelper, WATCHER_INTERVAL_MS
 from bakkesmod_linux.utils import get_resource_path
+from bakkesmod_linux.constants import BAKKESMOD_LOCATION
 
 class ProgressReporter:
     def __init__(self, callback):
         self._callback = callback
+        self._has_error = False
+        self._last_message = ""
+
+    def set_status_msg(self, message):
+        print(f"[status] {message}")
+        self._last_message = message
+        self._callback(message, -2)
 
     def status(self, message):
         print(f"[progress] {message}")
+        self._last_message = message
         self._callback(message, -1)
 
     def progress(self, message, percentage):
         print(f"[progress] {message} ({percentage}%)")
+        self._last_message = message
         self._callback(message, percentage)
 
     def done(self, message):
         print(f"[done] {message}")
+        self._last_message = message
         self._callback(message, 100)
 
     def error(self, message):
         print(f"[error] {message}")
+        self._has_error = True
+        self._last_message = message
         self._callback(message, 100)
 
 class WorkerThread(QThread):
@@ -43,7 +56,9 @@ class WorkerThread(QThread):
 
             progress = ProgressReporter(emit_progress)
             self.task_fn(progress)
-            self.finished.emit(True, "operation completed")
+
+            success = not progress._has_error
+            self.finished.emit(success, progress._last_message)
         except Exception as e:
             self.finished.emit(False, str(e))
 
@@ -62,14 +77,45 @@ class BakkesWindow(QMainWindow):
 
         self.setup_ui()
         self.setup_tray()
+        self.setup_watcher()
 
         with get_resource_path("main.qss") as file:
             self.setStyleSheet(file.read_text(encoding="utf-8"))
 
         self.start_task(
             lambda progress: self.injector.update(progress),
-            after_fn=lambda success, msg: self.show_idle_state()
+            after_fn=lambda success, msg: self.on_startup_complete()
         )
+
+    def setup_watcher(self):
+        self.watcher_timer = QTimer(self)
+        self.watcher_timer.timeout.connect(self.injector.check_rl_process)
+        self.injector.set_process_callback(self.on_process_state_changed)
+        self.watcher_timer.start(WATCHER_INTERVAL_MS)
+
+    def on_startup_complete(self):
+        self.show_idle_state()
+        self.injector.check_rl_process()
+
+        # update initial ui state
+        if self.injector.rl_running:
+            self.on_process_state_changed(True)
+        else:
+            self.on_process_state_changed(False)
+
+    def on_process_state_changed(self, running: bool):
+        if not running:
+            self.set_status("waiting for rocket league...", "normal")
+            self.inject_btn.setEnabled(False)
+            self.injector.injected = False
+            return
+
+        if self.injector.injected:
+            self.set_status("injected", "success")
+            self.inject_btn.setEnabled(False)
+        else:
+            self.set_status("ready", "info")
+            self.inject_btn.setEnabled(True)
 
     def setup_ui(self):
         central = QWidget()
@@ -87,15 +133,11 @@ class BakkesWindow(QMainWindow):
         self.update_btn.setObjectName("headerBtn")
         self.update_btn.clicked.connect(self.check_updates)
 
-        self.config_btn = QPushButton("config")
-        self.config_btn.setObjectName("headerBtn")
-
-        self.folder_btn = QPushButton("folder")
+        self.folder_btn = QPushButton("open folder")
         self.folder_btn.setObjectName("headerBtn")
         self.folder_btn.clicked.connect(self.open_folder)
 
         header_layout.addWidget(self.update_btn)
-        header_layout.addWidget(self.config_btn)
         header_layout.addWidget(self.folder_btn)
         header_layout.addStretch()
 
@@ -130,8 +172,8 @@ class BakkesWindow(QMainWindow):
         self.status_label.setObjectName("statusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        idle_layout.addWidget(self.inject_btn)
-        idle_layout.addWidget(self.status_label)
+        idle_layout.addWidget(self.inject_btn, 0, Qt.AlignmentFlag.AlignHCenter)
+        idle_layout.addWidget(self.status_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.idle_widget.setLayout(idle_layout)
 
@@ -149,8 +191,8 @@ class BakkesWindow(QMainWindow):
         self.progress_bar.setFixedWidth(260)
         self.progress_bar.setTextVisible(False)
 
-        loading_layout.addWidget(self.progress_text)
-        loading_layout.addWidget(self.progress_bar)
+        loading_layout.addWidget(self.progress_text, 0, Qt.AlignmentFlag.AlignHCenter)
+        loading_layout.addWidget(self.progress_bar, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.loading_widget.setLayout(loading_layout)
 
@@ -178,7 +220,6 @@ class BakkesWindow(QMainWindow):
 
     def toggle_header_buttons(self, enabled):
         self.update_btn.setEnabled(enabled)
-        self.config_btn.setEnabled(enabled)
         self.folder_btn.setEnabled(enabled)
 
     def setup_tray(self):
@@ -235,13 +276,8 @@ class BakkesWindow(QMainWindow):
         )
 
     def open_folder(self):
-        if self.injector.wine_prefix is None:
-            self.set_status("inject first to resolve prefix", "error")
-            return
-
-        path = self.injector.get_prefix_bakkesmod_path()
-        if path.exists():
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        if BAKKESMOD_LOCATION.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(BAKKESMOD_LOCATION)))
         else:
             self.set_status("bakkesmod folder not found", "error")
 
@@ -265,6 +301,11 @@ class BakkesWindow(QMainWindow):
         self.worker_thread.start()
 
     def update_progress(self, message, percentage):
+        if percentage == -2:
+            self.set_status(message, "info")
+            return
+
+        self.show_loading_state()
         self.progress_text.setText(message)
 
         if percentage == -1:
@@ -282,16 +323,18 @@ class BakkesWindow(QMainWindow):
     def finish_update(self, success, message):
         self.show_idle_state()
         if success:
-            self.set_status("up to date", "success")
+            self.set_status(message or "up to date", "success")
         else:
-            self.set_status(f"update failed: {message}", "error")
+            self.set_status(message or "update failed", "error")
 
     def finish_injection(self, success, message):
+        self.injector.injected = success
         self.show_idle_state()
+
         if success:
-            self.set_status("injected", "success")
+            self.on_process_state_changed(self.injector.rl_running)
         else:
-            self.set_status(f"failed: {message}", "error")
+            self.set_status(message or "injection failed", "error")
 
     def set_status(self, text, state="normal"):
         self.status_label.setText(text)

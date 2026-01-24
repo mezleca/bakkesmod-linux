@@ -54,7 +54,21 @@ QMainWindow {
 }
 
 #statusLabel[state="error"] {
-    color: #c44444;
+    color: #e57373;
+}
+
+#statusLabel[state="warning"] {
+    color: #ffb74d;
+}
+
+#statusLabel[state="info"] {
+    color: #64b5f6;
+}
+
+#mainBtn:disabled {
+    background-color: #121212;
+    color: #444444;
+    border-color: #1a1a1a;
 }
 
 #progressText {

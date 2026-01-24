@@ -1,6 +1,6 @@
 # BakkesMod Linux
 
-BakkesMod injector for linux.
+BakkesMod for linux.
 This is an updated and cleaner version of [mezleca/BakkesLinux](https://github.com/mezleca/BakkesLinux).
 
 ## What does this do?
@@ -16,10 +16,8 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 - Uses Python only for **update checks, file management, etc...**
 
 ## Todo
-- [ ] automatically create .desktop file
 - [ ] create workflow to compile the c++ injector
 - [ ] download the c++ injector from gh releases instead of using the manually copied one
-- [ ] loop to check if we closed rocket league (so we can inject once again)
 - [ ] test on other launchers (steam, lutris)
 
 ## Requirements
@@ -32,7 +30,11 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 ### pipx (recommended)
 
 ```bash
+# install bakkesmod 
 pipx install git+https://github.com/mezleca/bakkesmod-linux.git
+
+# if you want to create a .desktop file for BakkesMod, run:
+bakkesmod --create-desktop
 ```
 
 ### From source

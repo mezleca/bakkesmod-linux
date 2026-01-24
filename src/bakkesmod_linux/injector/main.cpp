@@ -2,9 +2,10 @@
 #include <cstring>
 #include <cwchar>
 #include <filesystem>
+#include <fstream>
 #include <processthreadsapi.h>
-#include <tlhelp32.h>
 #include <shlobj.h>
+#include <tlhelp32.h>
 #include <windows.h>
 
 namespace fs = std::filesystem;
@@ -78,10 +79,7 @@ exit_code inject_dll(const std::wstring& dll_path) {
         return ERR_PROCESS_NOT_FOUND;
     }
 
-    LPVOID load_library_addr = (LPVOID)GetProcAddress(
-        GetModuleHandleW(L"kernel32.dll"),
-        "LoadLibraryW"
-    );
+    LPVOID load_library_addr = (LPVOID)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "LoadLibraryW");
 
     if (!load_library_addr) {
         CloseHandle(process);
@@ -89,13 +87,7 @@ exit_code inject_dll(const std::wstring& dll_path) {
     }
 
     size_t path_size = (dll_path.length() + 1) * sizeof(wchar_t);
-    LPVOID remote_memory = VirtualAllocEx(
-        process,
-        NULL,
-        path_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE
-    );
+    LPVOID remote_memory = VirtualAllocEx(process, NULL, path_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
     if (!remote_memory) {
         CloseHandle(process);
@@ -108,15 +100,8 @@ exit_code inject_dll(const std::wstring& dll_path) {
         return ERR_INJECT_FAILED;
     }
 
-    HANDLE thread = CreateRemoteThread(
-        process,
-        NULL,
-        0,
-        (LPTHREAD_START_ROUTINE)load_library_addr,
-        remote_memory,
-        0,
-        NULL
-    );
+    HANDLE thread =
+        CreateRemoteThread(process, NULL, 0, (LPTHREAD_START_ROUTINE)load_library_addr, remote_memory, 0, NULL);
 
     if (!thread) {
         VirtualFreeEx(process, remote_memory, 0, MEM_RELEASE);
@@ -136,7 +121,24 @@ exit_code inject_dll(const std::wstring& dll_path) {
     return exit_status != 0 ? EXIT_OK : ERR_INJECT_FAILED;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 1 && strcmp(argv[1], "--get-path") == 0) {
+        fs::path app_data = get_app_data();
+
+        if (app_data.empty()) {
+            return 1;
+        }
+
+        std::ofstream outfile("C:\\bakkesmod_path.txt");
+
+        if (outfile.is_open()) {
+            outfile << app_data.string();
+            outfile.close();
+        }
+
+        return 0;
+    }
+
     fs::path dll_path = get_app_data() / "bakkesmod/bakkesmod/dll/bakkesmod.dll";
 
     if (!fs::exists(dll_path)) {
