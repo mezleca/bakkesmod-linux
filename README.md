@@ -1,7 +1,7 @@
 # BakkesMod Linux
 
 <p align="center">
-	<img src="https://github.com/mezleca/bakkesmod-linux/blob/main/images/preview.png" width="95%">
+	<img src="https://github.com/mezleca/bakkesmod-linux/blob/main/images/preview.png" width="60%">
 </p>
 
 An updated and cleaner version of [mezleca/BakkesLinux](https://github.com/mezleca/BakkesLinux).
