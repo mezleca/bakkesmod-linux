@@ -23,8 +23,10 @@ def run(
     env: dict[str, str] | None = None,
     capture: bool = False,
     wait: bool = True,
+    silent: bool = False
 ) -> tuple[int, str]:
-    print(f"exec: {cmd}")
+    if not silent:
+        print(f"exec: {cmd}")
 
     if wait:
         result = subprocess.run(
@@ -51,6 +53,10 @@ def run(
     )
 
     return 0, ""
+
+def extract_version() -> str:
+    _ , result = run("grep -oP 'project\\(.*VERSION\\s+\\K[0-9.]+' CMakeLists.txt", silent=True)
+    return result
 
 def is_process_active(name: str, check: bool = False) -> bool:
     print(f"check process: {name}")
@@ -193,7 +199,7 @@ def run_binary() -> int:
         print("build the project first")
         return 1
 
-    if not binary.exists():
+    if not Path(binary).exists():
         print(f"binary not found at {binary}")
         print("build the project first")
         return 1
@@ -208,7 +214,7 @@ def main():
 
     _ = parser.add_argument(
         "command",
-        choices=["init", "configure", "build", "clean", "run"],
+        choices=["init", "configure", "build", "clean", "run", "version"],
         help="command to execute"
     )
 
@@ -230,6 +236,7 @@ def main():
         "init": init,
         "configure": lambda: configure(args.debug),
         "build": lambda: build(args.debug),
+        "version": extract_version,
         "clean": clean,
         "run": run_binary
     }

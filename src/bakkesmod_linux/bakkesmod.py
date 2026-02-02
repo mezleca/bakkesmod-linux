@@ -60,6 +60,10 @@ class BakkesHelper:
         if self._on_process_change and was_running != self.rl_running:
             self._on_process_change(self.rl_running)
 
+    # TOFIX: this is needed because some wine versions forces steamuser as user instead of $USER
+    # and since bakkesmod expects its files at %APPDATA%/bakkesmod
+    # we have to resolve this at install / inject
+    # however this just seems a bit too much
     def resolve_install_path(self, progress=None) -> bool:
         if not self.wine_prefix or not self.loader:
             return False
