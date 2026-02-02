@@ -18,8 +18,6 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 - Uses a **minimal C++ injector** to inject the bakkesmod on the wine process.
 
 ## Todo
-- [ ] create workflow to compile the c++ injector
-- [ ] download the c++ injector from gh releases instead of using the manually copied one
 - [ ] test on other launchers (steam, lutris)
 
 ## Requirements
