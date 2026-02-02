@@ -63,8 +63,8 @@ jobs:
             - name: create or update release
               uses: softprops/action-gh-release@v2
               with:
-                  name: ${{ needs.build.outputs.injector_version }}
-                  tag_name: ${{ needs.build.outputs.injector_version }}
+                  name: injector-${{ needs.build.outputs.injector_version }}
+                  tag_name: injector-${{ needs.build.outputs.injector_version }}
                   draft: false
                   prerelease: false
                   generate_release_notes: true
