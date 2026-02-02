@@ -33,7 +33,7 @@ Instead of fighting with multiple prefixes, broken installers, or duplicated fil
 
 ```bash
 # install bakkesmod 
-pipx install git+https://github.com/mezleca/bakkesmod-linux.git
+pipx install --force git+https://github.com/mezleca/bakkesmod-linux.git
 
 # if you want to create a .desktop file for BakkesMod, run:
 bakkesmod --create-desktop
@@ -44,5 +44,5 @@ bakkesmod --create-desktop
 ```bash
 git clone https://github.com/mezleca/bakkesmod-linux.git
 cd bakkesmod-linux
-pip install -e .
+pipx install -e .
 ```

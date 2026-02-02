@@ -95,21 +95,16 @@ class BakkesWindow(QMainWindow):
         self.injector.set_process_callback(self.on_process_state_changed)
         self.watcher_timer.start(WATCHER_INTERVAL_MS)
 
-    def check_rl_process(self):
-        self.injector.check_rl_process()
-
-        # update initial ui state
-        if self.injector.rl_running:
-            self.on_process_state_changed(True)
-        else:
-            self.on_process_state_changed(False)
 
     def on_startup_complete(self):
         self.show_idle_state()
-        self.injector.check_rl_process()
+        # defer process check to next event loop tick to avoid blocking ui
+        QTimer.singleShot(0, self._initial_process_check)
 
-        # update initial ui state
-        self.check_rl_process()
+    def _initial_process_check(self):
+        self.injector.check_rl_process()
+        # force ui update based on current state
+        self.on_process_state_changed(self.injector.rl_running)
 
     def on_process_state_changed(self, running: bool):
         if not running:
@@ -335,7 +330,7 @@ class BakkesWindow(QMainWindow):
         else:
             self.set_status(message or "update failed", "error")
 
-        self.check_rl_process()
+        self._initial_process_check()
 
     def finish_injection(self, success, message):
         self.injector.injected = success
