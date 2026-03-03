@@ -19,9 +19,6 @@ set(CMAKE_BUILD_TYPE Release)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/bakkesmod_linux/injector/*.cpp")
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/bakkesmod_linux/injector/*.hpp")
 
-# add dependencies
-# add_subdirectory(vendor/fmt)
-
 add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
@@ -30,14 +27,6 @@ add_executable(${PROJECT_NAME}
 if(DEFINED OUTPUT_NAME)
     set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
 endif()
-
-# target_link_libraries(${PROJECT_NAME} PRIVATE
-#     fmt::fmt
-# )
-
-# target_include_directories(${PROJECT_NAME} PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/...
-# )
 
 add_custom_target(copy_compile_commands ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -14,14 +14,14 @@ WINE_VARS_ALLOWED = [
     "WINEDEBUG",
     "WINEDLLPATH",
     "WINENTSYNC",
+    "WINEESYNC",
+    "WINEFSYNC",
 
-    # proton specific (prob not needed)
     "PROTON_USE_WOW64",
     "PROTON_USE_NTSYNC",
     "PROTON_NO_ESYNC",
     "PROTON_NO_FSYNC",
 
-    # graphics/vulkan (why not)
     "DXVK_LOG_LEVEL",
     "DXVK_NVAPI_ALLOW_OTHER_DRIVERS",
     "DXVK_ENABLE_NVAPI",
@@ -30,7 +30,6 @@ WINE_VARS_ALLOWED = [
     "VK_ICD_FILENAMES",
     "VK_DRIVER_FILES",
 
-    # library paths
     "LD_LIBRARY_PATH",
     "LIBVA_DRIVERS_PATH",
     "LIBGL_DRIVERS_PATH",
@@ -109,7 +108,9 @@ def run(
             print(f"command failed with exit code {result.returncode}")
             sys.exit(result.returncode)
 
-        return result.returncode, result.stdout
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        return result.returncode, f"{stdout}{stderr}"
 
     _ = subprocess.Popen(
         cmd,

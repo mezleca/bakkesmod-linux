@@ -21,6 +21,7 @@ from bakkesmod_linux.utils import (
 
 SYMLINK_DIRS = ["cfg", "plugins"]
 WATCHER_INTERVAL_MS = 3000
+CUSTOM_INJECTOR_ENV = "BAKKESLINUX_CUSTOM_INJECTOR"
 
 class BakkesHelper:
     def __init__(self, config: ConfigManager | None = None):
@@ -64,10 +65,11 @@ class BakkesHelper:
         if not self.wine_prefix or not self.loader:
             return False
 
-        injector_path = BAKKESMOD_LOCATION / "simple_injector.exe"
+        injector_path, _ = self._resolve_injector_path()
 
         if not injector_path.exists():
-            if progress: progress.error("injector not found, run injection first")
+            if progress:
+                progress.error("injector not found...")
             return False
 
         injector_target = Path(self.wine_prefix) / "drive_c/simple_injector_tmp.exe"
@@ -77,14 +79,25 @@ class BakkesHelper:
             output_file.unlink(missing_ok=True)
             shutil.copy2(injector_path, injector_target)
 
-            cmd = f'{self.loader} "{injector_target}" --get-path'
-            run(cmd, wait=True, check=False, env=self.game_env)
+            code, _ = run(
+                f'{self.loader} "{injector_target}" --get-path',
+                wait=True,
+                check=False,
+                capture=True,
+                env=self.game_env
+            )
 
-            injector_target.unlink(missing_ok=True)
+            if code != 0:
+                error_msg = f"failed to run injector --get-path (exit code {code})"
+                if progress:
+                    progress.error(error_msg)
+                print(error_msg)
+                return False
 
             if not output_file.exists():
                 error_msg = "failed to resolve appdata path"
-                if progress: progress.error(error_msg)
+                if progress:
+                    progress.error(error_msg)
                 print(error_msg)
                 return False
 
@@ -98,8 +111,11 @@ class BakkesHelper:
 
         except Exception as e:
             print(f"error resolving path: {e}")
-            if progress: progress.error(f"error resolving path: {e}")
+            if progress:
+                progress.error(f"error resolving path: {e}")
             return False
+        finally:
+            injector_target.unlink(missing_ok=True)
 
     def download_bakkesmod(self, progress):
         progress.status("downloading latest bakkesmod version...")
@@ -244,6 +260,27 @@ class BakkesHelper:
             progress.error(f"failed to download injector: {e}")
             return False
 
+    def _get_custom_injector_path(self) -> Path | None:
+        raw = os.getenv(CUSTOM_INJECTOR_ENV, "").strip()
+
+        if raw == "":
+            return None
+
+        custom_path = Path(raw).expanduser()
+
+        if custom_path.exists():
+            return custom_path
+
+        return None
+
+    def _resolve_injector_path(self) -> tuple[Path, bool]:
+        custom_path = self._get_custom_injector_path()
+
+        if custom_path:
+            return custom_path, True
+
+        return BAKKESMOD_LOCATION / "simple_injector.exe", False
+
     def _ensure_prefix_files(self, progress):
         try:
             prefix_path = self._get_prefix_bakkesmod_path()
@@ -297,17 +334,21 @@ class BakkesHelper:
             return
 
         # verify injector exists before doing anything
-        injector_path = BAKKESMOD_LOCATION / "simple_injector.exe"
+        injector_path, using_custom_injector = self._resolve_injector_path()
 
-        if not injector_path.exists():
+        if using_custom_injector:
+            progress.progress("using custom injector...", 10)
+        elif not injector_path.exists():
             progress.progress("downloading injector...", 10)
             if not self._check_and_download_injector(progress):
                 progress.error("injector not available")
                 return
+            injector_path, _ = self._resolve_injector_path()
         else:
             # check for updates in background
             progress.progress("checking injector...", 10)
             self._check_and_download_injector(progress)
+            injector_path, _ = self._resolve_injector_path()
 
         if not self.bakkesmod_path and not self.resolve_install_path(progress):
             return
@@ -321,8 +362,6 @@ class BakkesHelper:
 
         if not self._ensure_prefix_files(progress):
             return
-
-        injector_path = BAKKESMOD_LOCATION / "simple_injector.exe"
 
         if not injector_path.exists():
             progress.error("injector binary missing")

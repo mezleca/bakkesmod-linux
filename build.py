@@ -178,18 +178,7 @@ def build(debug: bool) -> int:
     cores = get_cpu_count()
     ret = run(f"ninja -C {BUILD_DIR} -j{cores}")[0]
 
-    if ret > 0:
-        return ret
-
-    # TOFIX: remove when i finish workflow
-    binary = get_binary()
-
-    if binary is None:
-        print("hack: cant copy (unable to find)")
-        return 1
-
-    _ = run(f"cp {binary} ./src/bakkesmod_linux/resources/")
-    return 0
+    return ret
 
 def run_binary() -> int:
     binary = get_binary()
